@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, Zap, Wrench } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Zap, Wrench, AlertCircle, X, Save, PlusCircle, Palmtree } from 'lucide-react';
 import { CalendarViewType } from '../types';
 import { BottomMenu } from '../components/BottomMenu';
 
@@ -9,7 +9,15 @@ interface VacationPeriod {
   end: Date;
 }
 
-interface EmployeeScheduleConfig {
+interface ScheduleOverride {
+  id: string; // unique ID for deletion/management
+  date: string; // ISO string YYYY-MM-DD
+  employeeName: string;
+  type: 'emergency_work' | 'extra_day_off';
+  note?: string;
+}
+
+interface EmployeeBase {
   name: string;
   role: string;
   referenceDate: Date; // A known day off
@@ -19,30 +27,52 @@ interface EmployeeScheduleConfig {
 const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const [view, setView] = useState<CalendarViewType>(CalendarViewType.MONTH);
-  const [currentMonth, setCurrentMonth] = useState(new Date()); // Opens on current month
+  const [currentMonth, setCurrentMonth] = useState(new Date()); 
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Modal State
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overrideType, setOverrideType] = useState<'emergency_work' | 'extra_day_off'>('emergency_work');
+  const [overrideEmployee, setOverrideEmployee] = useState('');
+  const [overrideNote, setOverrideNote] = useState('');
 
-  // Configuration based on User's prompt for December 2025
-  // Cycle is 6 days (5 work + 1 off)
-  const employeesConfig: EmployeeScheduleConfig[] = [
-    { name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, // 01/12/2025
-    { name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, // 01/12/2025
-    { 
-      name: 'Antonio Marcos', 
-      role: 'Eletricista', 
-      referenceDate: new Date(2025, 11, 2) 
-    }, // 02/12/2025
-    { name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, // 03/12/2025
-    { name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, // 04/12/2025
+  // Persistent Overrides State
+  const [overrides, setOverrides] = useState<ScheduleOverride[]>(() => {
+    const saved = localStorage.getItem('hr_flow_overrides');
+    // Pre-populate with the specific case requested if storage is empty, just as an example
+    if (!saved) {
+        return [{
+            id: 'default-1',
+            date: '2025-12-09',
+            employeeName: 'Adriano Pinto',
+            type: 'emergency_work',
+            note: 'Demanda de emergência'
+        }];
+    }
+    return JSON.parse(saved);
+  });
+
+  // Save overrides whenever they change
+  useEffect(() => {
+    localStorage.setItem('hr_flow_overrides', JSON.stringify(overrides));
+  }, [overrides]);
+
+  // Static Configuration
+  const employeesConfig: EmployeeBase[] = [
+    { name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
+    { name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
+    { name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
+    { name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
+    { name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
     { 
       name: 'Manuel Gonçalves', 
       role: 'Mecânico', 
-      referenceDate: new Date(2025, 11, 5), // 05/12/2025
+      referenceDate: new Date(2025, 11, 5),
       vacations: [
-        { start: new Date(2025, 11, 22), end: new Date(2026, 0, 10) } // 22/12/2025 to 10/01/2026
+        { start: new Date(2025, 11, 22), end: new Date(2026, 0, 10) } 
       ]
     }, 
-    { name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, // 06/12/2025
+    { name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
   ];
 
   // Navigation Logic
@@ -50,11 +80,10 @@ const CalendarPage: React.FC = () => {
     if (view === CalendarViewType.MONTH) {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     } else {
-        // Next week
         const newDate = new Date(selectedDate);
         newDate.setDate(selectedDate.getDate() + 7);
         setSelectedDate(newDate);
-        setCurrentMonth(newDate); // Sync month header
+        setCurrentMonth(newDate); 
     }
   };
 
@@ -62,11 +91,10 @@ const CalendarPage: React.FC = () => {
     if (view === CalendarViewType.MONTH) {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     } else {
-        // Prev week
         const newDate = new Date(selectedDate);
         newDate.setDate(selectedDate.getDate() - 7);
         setSelectedDate(newDate);
-        setCurrentMonth(newDate); // Sync month header
+        setCurrentMonth(newDate); 
     }
   };
 
@@ -76,8 +104,9 @@ const CalendarPage: React.FC = () => {
     setSelectedDate(today);
   };
 
-  // Helper: Check if employee is on vacation
-  const isEmployeeOnVacation = (employee: EmployeeScheduleConfig, date: Date) => {
+  // --- Logic Helpers ---
+
+  const isEmployeeOnVacation = (employee: EmployeeBase, date: Date) => {
     if (!employee.vacations) return false;
     const target = new Date(date).setHours(0,0,0,0);
     
@@ -88,10 +117,12 @@ const CalendarPage: React.FC = () => {
     });
   };
 
-  // Helper: Check if employee is on regular 5x1 day off
-  const isRegularDayOff = (employee: EmployeeScheduleConfig, date: Date) => {
-    // If on vacation, logic 5x1 doesn't matter for display purposes (Vacation takes precedence)
-    // But pure 5x1 calculation is purely mathematical
+  const getOverride = (employeeName: string, date: Date) => {
+    const dateStr = date.toISOString().split('T')[0]; // Compare using YYYY-MM-DD
+    return overrides.find(o => o.date === dateStr && o.employeeName === employeeName);
+  };
+
+  const isRegularDayOff = (employee: EmployeeBase, date: Date) => {
     const target = new Date(date).setHours(0,0,0,0);
     const ref = new Date(employee.referenceDate).setHours(0,0,0,0);
     
@@ -102,14 +133,28 @@ const CalendarPage: React.FC = () => {
     return ((diffDays % 6) + 6) % 6 === 0;
   };
 
-  // Helper: Get status for a specific date
   const getEmployeeStatusOnDate = (date: Date) => {
-    const onVacation: EmployeeScheduleConfig[] = [];
-    const onDayOff: EmployeeScheduleConfig[] = [];
-    const working: EmployeeScheduleConfig[] = [];
+    const onVacation: EmployeeBase[] = [];
+    const onDayOff: EmployeeBase[] = [];
+    const emergencyWork: { emp: EmployeeBase, note?: string, id: string }[] = [];
+    const extraDayOff: { emp: EmployeeBase, note?: string, id: string }[] = [];
+    const working: EmployeeBase[] = [];
 
     employeesConfig.forEach(emp => {
-      if (isEmployeeOnVacation(emp, date)) {
+      const override = getOverride(emp.name, date);
+
+      // Priority Logic:
+      // 1. Override (User manually set this)
+      // 2. Vacation
+      // 3. Regular Schedule
+
+      if (override) {
+        if (override.type === 'emergency_work') {
+            emergencyWork.push({ emp, note: override.note, id: override.id });
+        } else if (override.type === 'extra_day_off') {
+            extraDayOff.push({ emp, note: override.note, id: override.id });
+        }
+      } else if (isEmployeeOnVacation(emp, date)) {
         onVacation.push(emp);
       } else if (isRegularDayOff(emp, date)) {
         onDayOff.push(emp);
@@ -118,8 +163,40 @@ const CalendarPage: React.FC = () => {
       }
     });
 
-    return { onVacation, onDayOff, working };
+    return { onVacation, onDayOff, emergencyWork, extraDayOff, working };
   };
+
+  // --- Handlers ---
+
+  const handleOpenModal = () => {
+    setIsOverrideModalOpen(true);
+    setOverrideType('emergency_work'); // Reset to default
+    setOverrideEmployee('');
+    setOverrideNote('');
+  }
+
+  const handleAddOverride = () => {
+    if (!overrideEmployee) return;
+
+    const newOverride: ScheduleOverride = {
+        id: Date.now().toString(),
+        date: selectedDate.toISOString().split('T')[0],
+        employeeName: overrideEmployee,
+        type: overrideType,
+        note: overrideNote || (overrideType === 'emergency_work' ? 'Trabalho Extra' : 'Folga Extra')
+    };
+
+    setOverrides([...overrides, newOverride]);
+    setIsOverrideModalOpen(false);
+    setOverrideEmployee('');
+    setOverrideNote('');
+  };
+
+  const handleDeleteOverride = (id: string) => {
+      setOverrides(overrides.filter(o => o.id !== id));
+  };
+
+  // --- Render Helpers ---
 
   const renderRoleIcon = (role: string) => {
     if (role.toLowerCase().includes('eletricista')) {
@@ -157,10 +234,9 @@ const CalendarPage: React.FC = () => {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
-  // Logic to generate days
+  // Calendar Calculation
   const getDaysToRender = () => {
     if (view === CalendarViewType.WEEK) {
-        // Calculate start of week (Sunday) based on selectedDate
         const startOfWeek = new Date(selectedDate);
         startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
         
@@ -172,7 +248,6 @@ const CalendarPage: React.FC = () => {
         }
         return weekDays;
     } else {
-        // Month Logic
         const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
         const getFirstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
@@ -180,7 +255,7 @@ const CalendarPage: React.FC = () => {
         const startDay = getFirstDayOfMonth(currentMonth);
 
         const monthDays = [];
-        for (let i = 0; i < startDay; i++) monthDays.push(null); // Empty slots
+        for (let i = 0; i < startDay; i++) monthDays.push(null); 
         for (let i = 1; i <= daysInMonth; i++) {
             monthDays.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i));
         }
@@ -189,17 +264,32 @@ const CalendarPage: React.FC = () => {
   };
 
   const daysToRender = getDaysToRender();
-
-  // Selected Date Stats
   const dailyStats = getEmployeeStatusOnDate(selectedDate);
   const formattedSelectedDate = selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  // Display Month Name (Use selected date for week view to avoid confusion if week spans months)
   const displayDate = view === CalendarViewType.WEEK ? selectedDate : currentMonth;
+
+  // Employees available for selection in modal logic
+  const employeesAvailableForOverride = employeesConfig.filter(emp => {
+      const isOff = isRegularDayOff(emp, selectedDate) || isEmployeeOnVacation(emp, selectedDate);
+      
+      const alreadyOverridden = dailyStats.emergencyWork.some(e => e.emp.name === emp.name) || 
+                                dailyStats.extraDayOff.some(e => e.emp.name === emp.name);
+      
+      if (alreadyOverridden) return false;
+
+      // Logic switch based on type
+      if (overrideType === 'emergency_work') {
+          // Can only make them work if they are OFF
+          return isOff;
+      } else {
+          // Can only give extra day off if they are WORKING
+          return !isOff;
+      }
+  });
 
   return (
     <div className="flex flex-col h-full bg-[#0f172a] text-white relative">
-      {/* Custom Header for Calendar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-6">
         <div className="flex items-center gap-2">
            <button 
@@ -248,12 +338,11 @@ const CalendarPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Container with Scroll */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto pb-24">
         
         {/* Calendar Grid */}
         <div className="px-4 mb-6">
-          {/* Days Header */}
           <div className="grid grid-cols-7 mb-4">
             {daysOfWeek.map((day, i) => (
               <div key={i} className="text-center text-slate-400 text-sm font-medium">
@@ -262,7 +351,6 @@ const CalendarPage: React.FC = () => {
             ))}
           </div>
 
-          {/* Days Grid */}
           <div className={`grid grid-cols-7 gap-y-4 gap-x-1 ${view === CalendarViewType.WEEK ? 'py-4 bg-[#1e293b]/30 rounded-2xl' : ''}`}>
             {daysToRender.map((dateObj, index) => {
               if (!dateObj) return <div key={`empty-${index}`} />;
@@ -273,8 +361,9 @@ const CalendarPage: React.FC = () => {
               const stats = getEmployeeStatusOnDate(dateObj);
               const hasVacation = stats.onVacation.length > 0;
               const hasDayOff = stats.onDayOff.length > 0;
+              const hasEmergency = stats.emergencyWork.length > 0;
+              const hasExtraOff = stats.extraDayOff.length > 0;
 
-              // Larger size for Week View
               const sizeClass = view === CalendarViewType.WEEK ? 'w-11 h-11 text-base' : 'w-9 h-9 text-sm';
               const dotSize = view === CalendarViewType.WEEK ? 'w-1.5 h-1.5' : 'w-1 h-1';
 
@@ -282,12 +371,9 @@ const CalendarPage: React.FC = () => {
                 <div key={index} className="flex flex-col items-center gap-1 relative h-auto">
                   <button
                     onClick={() => {
-                        // Create a copy to ensure immutability
                         const newDate = new Date(dateObj);
                         setSelectedDate(newDate);
-                        
                         if (view === CalendarViewType.WEEK) {
-                            // Optionally sync current month if clicking a day from adjacent month in week view
                             if (newDate.getMonth() !== currentMonth.getMonth()) {
                                 setCurrentMonth(newDate);
                             }
@@ -304,11 +390,13 @@ const CalendarPage: React.FC = () => {
                     {dateObj.getDate()}
                   </button>
                   
-                  {/* Indicator Dots */}
-                  {!isSelected && (hasVacation || hasDayOff) && (
+                  {!isSelected && (hasVacation || hasDayOff || hasEmergency || hasExtraOff) && (
                     <div className="flex gap-0.5 absolute -bottom-1">
                         {hasVacation && <div className={`${dotSize} rounded-full bg-blue-400`}></div>}
-                        {hasDayOff && <div className={`${dotSize} rounded-full bg-orange-500`}></div>}
+                        {hasEmergency && <div className={`${dotSize} rounded-full bg-purple-500`}></div>}
+                        {hasExtraOff && <div className={`${dotSize} rounded-full bg-teal-400`}></div>}
+                        {/* Only show orange if no higher priority overrides/vacations exist, or if multiple people */}
+                        {hasDayOff && !hasEmergency && !hasExtraOff && <div className={`${dotSize} rounded-full bg-orange-500`}></div>}
                     </div>
                   )}
                 </div>
@@ -319,11 +407,80 @@ const CalendarPage: React.FC = () => {
 
         {/* Daily Schedule Section */}
         <div className="px-4 mt-4">
-          <h3 className="text-slate-400 text-sm font-medium mb-3 border-b border-slate-800 pb-2">
-            Escala: {formattedSelectedDate}
-          </h3>
+          <div className="flex justify-between items-end border-b border-slate-800 pb-2 mb-3">
+             <h3 className="text-slate-400 text-sm font-medium">
+                Escala: {formattedSelectedDate}
+             </h3>
+             <button 
+                onClick={handleOpenModal}
+                className="text-xs text-blue-400 font-bold hover:text-blue-300 flex items-center gap-1"
+             >
+                <PlusCircle className="w-4 h-4" />
+                Ajustar Escala
+             </button>
+          </div>
           
           <div className="space-y-4">
+
+            {/* Emergency Work Section */}
+            {dailyStats.emergencyWork.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-purple-400 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Trabalho Extra (Emergência)
+                </h4>
+                <div className="grid gap-3">
+                  {dailyStats.emergencyWork.map(({ emp, note, id }) => (
+                    <div key={emp.name} className="flex items-center gap-3 bg-purple-900/20 p-3 rounded-xl border border-purple-500/50 relative group">
+                      {renderRoleIcon(emp.role)}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-white text-sm">{emp.name}</p>
+                          <span className="text-[10px] bg-purple-500 text-white px-1.5 rounded uppercase font-bold">A Compensar</span>
+                        </div>
+                        <p className="text-xs text-purple-300 mt-0.5">{note || 'Chamado de última hora'}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteOverride(id)}
+                        className="absolute -top-2 -right-2 bg-slate-800 text-slate-400 rounded-full p-1 shadow border border-slate-700 hover:text-red-400"
+                      >
+                         <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extra Day Off Section */}
+            {dailyStats.extraDayOff.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-teal-400 flex items-center gap-2">
+                  <Palmtree className="w-4 h-4" />
+                  Folga Extra
+                </h4>
+                <div className="grid gap-3">
+                  {dailyStats.extraDayOff.map(({ emp, note, id }) => (
+                    <div key={emp.name} className="flex items-center gap-3 bg-teal-900/20 p-3 rounded-xl border border-teal-500/50 relative group">
+                      {renderRoleIcon(emp.role)}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-white text-sm">{emp.name}</p>
+                          <span className="text-[10px] bg-teal-500 text-white px-1.5 rounded uppercase font-bold">Extra</span>
+                        </div>
+                        <p className="text-xs text-teal-300 mt-0.5">{note || 'Folga concedida'}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteOverride(id)}
+                        className="absolute -top-2 -right-2 bg-slate-800 text-slate-400 rounded-full p-1 shadow border border-slate-700 hover:text-red-400"
+                      >
+                         <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Vacation Section */}
             {dailyStats.onVacation.length > 0 && (
@@ -390,10 +547,9 @@ const CalendarPage: React.FC = () => {
 
           </div>
         </div>
-
       </div>
 
-      {/* Floating Action Button - Positioned above BottomMenu */}
+      {/* FAB */}
       <div className="absolute bottom-20 right-6 z-20">
         <button
           onClick={() => navigate('/request')}
@@ -403,8 +559,96 @@ const CalendarPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Bottom Navigation */}
       <BottomMenu />
+
+      {/* Override Modal */}
+      {isOverrideModalOpen && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-[#1e293b] w-full max-w-sm rounded-2xl p-5 border border-slate-700 shadow-2xl">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-white">Ajustar Escala</h3>
+                      <button onClick={() => setIsOverrideModalOpen(false)} className="text-slate-400 hover:text-white">
+                          <X className="w-6 h-6" />
+                      </button>
+                  </div>
+
+                  {/* Type Toggle */}
+                  <div className="flex bg-[#0f172a] rounded-lg p-1 mb-4">
+                      <button 
+                        onClick={() => { setOverrideType('emergency_work'); setOverrideEmployee(''); }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${
+                            overrideType === 'emergency_work' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                          Trabalho Extra
+                      </button>
+                      <button 
+                         onClick={() => { setOverrideType('extra_day_off'); setOverrideEmployee(''); }}
+                         className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${
+                            overrideType === 'extra_day_off' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                          Folga Extra
+                      </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Dia Selecionado</label>
+                          <div className="text-white font-medium bg-[#0f172a] p-2 rounded-lg border border-slate-800">
+                              {formattedSelectedDate}
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Funcionário</label>
+                          <select 
+                            value={overrideEmployee} 
+                            onChange={(e) => setOverrideEmployee(e.target.value)}
+                            className="w-full bg-[#0f172a] text-white p-3 rounded-xl border border-slate-700 focus:border-blue-500 focus:outline-none"
+                          >
+                              <option value="">Selecione...</option>
+                              {employeesAvailableForOverride.map(emp => (
+                                  <option key={emp.name} value={emp.name}>
+                                      {emp.name}
+                                  </option>
+                              ))}
+                          </select>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                              {overrideType === 'emergency_work' 
+                                ? 'Mostrando quem está de folga/férias hoje.' 
+                                : 'Mostrando quem está trabalhando hoje.'}
+                          </p>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Motivo / Obs</label>
+                          <input 
+                            type="text" 
+                            value={overrideNote}
+                            onChange={(e) => setOverrideNote(e.target.value)}
+                            placeholder={overrideType === 'emergency_work' ? "Ex: Emergência" : "Ex: Banco de horas"}
+                            className="w-full bg-[#0f172a] text-white p-3 rounded-xl border border-slate-700 focus:border-blue-500 focus:outline-none"
+                          />
+                      </div>
+
+                      <button 
+                        disabled={!overrideEmployee}
+                        onClick={handleAddOverride}
+                        className={`w-full text-white font-bold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 ${
+                            overrideType === 'emergency_work' 
+                                ? 'bg-purple-600 hover:bg-purple-700' 
+                                : 'bg-teal-600 hover:bg-teal-700'
+                        }`}
+                      >
+                          <Save className="w-5 h-5" />
+                          Salvar Ajuste
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 };
