@@ -2,7 +2,9 @@ export enum EmployeeStatus {
   AVAILABLE = 'Disponível',
   VACATION = 'De Férias',
   DAY_OFF = 'De Folga',
-  LEAVE = 'Licença'
+  LEAVE = 'Licença',
+  EXTRA_WORK = 'Trabalho Extra',
+  EXTRA_OFF = 'Folga Extra'
 }
 
 export interface Employee {
@@ -32,4 +34,12 @@ export interface CalendarEvent {
   employeeName?: string;
   isStart?: boolean;
   span?: number;
+}
+
+export interface ScheduleOverride {
+  id: string; // unique ID for deletion/management
+  date: string; // ISO string YYYY-MM-DD
+  employeeName: string;
+  type: 'emergency_work' | 'extra_day_off';
+  note?: string;
 }

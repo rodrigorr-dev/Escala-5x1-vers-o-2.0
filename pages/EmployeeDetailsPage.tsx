@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Pencil, Calendar, Clock, Cake, Briefcase, Zap, Wrench } from 'lucide-react';
 import { NavBar } from '../components/NavBar';
-import { Employee, EmployeeStatus } from '../types';
+import { Employee, EmployeeStatus, ScheduleOverride } from '../types';
+import { loadOverrides } from '../services/storage';
 
 interface ExtendedEmployee extends Employee {
   referenceDate: Date; // Base date for 5x1 calculation (December 2025 based)
@@ -12,6 +13,17 @@ interface ExtendedEmployee extends Employee {
 const EmployeeDetailsPage: React.FC = () => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState<'history' | 'data'>('history');
+  
+  // Overrides State
+  const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+
+  useEffect(() => {
+    const fetch = async () => {
+        const data = await loadOverrides();
+        setOverrides(data);
+    };
+    fetch();
+  }, []);
 
   // Employee data with 5x1 reference dates and birthdays
   const employees: ExtendedEmployee[] = [
@@ -80,7 +92,38 @@ const EmployeeDetailsPage: React.FC = () => {
     }
   ];
 
-  const employee = employees.find(e => e.id === id) || employees[0];
+  const employeeBase = employees.find(e => e.id === id) || employees[0];
+
+  // Logic to calculate TRUE current status (including Overrides)
+  const calculateCurrentStatus = (emp: ExtendedEmployee): EmployeeStatus => {
+     const today = new Date();
+     today.setHours(0,0,0,0);
+     const dateStr = today.toISOString().split('T')[0];
+
+     // 0. Overrides
+     const override = overrides.find(o => o.date === dateStr && o.employeeName === emp.name);
+     if (override) {
+         if (override.type === 'emergency_work') return EmployeeStatus.EXTRA_WORK;
+         if (override.type === 'extra_day_off') return EmployeeStatus.EXTRA_OFF;
+     }
+
+     // 1. Regular Logic (Copied from status field mostly, but ideally dynamic)
+     // Since the static 'status' field in 'employees' array was just a placeholder/initial value,
+     // we should ideally recalculate like in ListPage.
+     // For simplicity, let's assume the 'status' in array is mostly correct for 5x1 but we just override it.
+     
+     // However, to be consistent with ListPage, let's check basic 5x1 day off:
+     const ref = new Date(emp.referenceDate);
+     ref.setHours(0,0,0,0);
+     const diffDays = Math.round((today.getTime() - ref.getTime()) / (1000 * 3600 * 24));
+     const cyclePos = ((diffDays % 6) + 6) % 6;
+     
+     if (cyclePos === 0) return EmployeeStatus.DAY_OFF;
+     return emp.status; // Fallback to config status
+  };
+
+  const currentStatus = calculateCurrentStatus(employeeBase);
+  const employee = { ...employeeBase, status: currentStatus };
 
   // Logic to calculate Next Day Off and Previous Days Off based on 5x1
   const calculateSchedule = (refDate: Date) => {
@@ -166,6 +209,28 @@ const EmployeeDetailsPage: React.FC = () => {
       </div>
     );
   };
+  
+  const getStatusColor = (status: EmployeeStatus) => {
+      switch (status) {
+          case EmployeeStatus.AVAILABLE: return 'text-green-400';
+          case EmployeeStatus.VACATION: return 'text-blue-400';
+          case EmployeeStatus.DAY_OFF: return 'text-orange-400';
+          case EmployeeStatus.EXTRA_WORK: return 'text-purple-400';
+          case EmployeeStatus.EXTRA_OFF: return 'text-teal-400';
+          default: return 'text-slate-400';
+      }
+  };
+
+  const getStatusLabel = (status: EmployeeStatus) => {
+      switch (status) {
+          case EmployeeStatus.AVAILABLE: return 'Trabalhando';
+          case EmployeeStatus.VACATION: return 'Férias';
+          case EmployeeStatus.DAY_OFF: return 'De Folga';
+          case EmployeeStatus.EXTRA_WORK: return 'Trabalho Extra';
+          case EmployeeStatus.EXTRA_OFF: return 'Folga Extra';
+          default: return status;
+      }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#0f172a] text-white">
@@ -185,12 +250,8 @@ const EmployeeDetailsPage: React.FC = () => {
         </div>
         <h2 className="text-2xl font-bold">{employee.name}</h2>
         <p className="text-slate-400">{employee.role}</p>
-        <p className={`mt-3 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#1e293b] ${
-            employee.status === EmployeeStatus.AVAILABLE ? 'text-green-400' :
-            employee.status === EmployeeStatus.VACATION ? 'text-blue-400' :
-            employee.status === EmployeeStatus.DAY_OFF ? 'text-orange-400' : 'text-slate-400'
-        }`}>
-            {employee.status}
+        <p className={`mt-3 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#1e293b] ${getStatusColor(currentStatus)}`}>
+            {getStatusLabel(currentStatus)}
         </p>
       </div>
 

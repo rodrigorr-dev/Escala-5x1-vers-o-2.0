@@ -16,12 +16,17 @@ export const NavBar: React.FC<NavBarProps> = ({ title, rightAction, onBack, show
     if (onBack) {
       onBack();
     } else {
-      navigate(-1);
+      // Se não houver histórico anterior seguro, volta para o calendário
+      if (window.history.length <= 1) {
+        navigate('/calendar');
+      } else {
+        navigate(-1);
+      }
     }
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-5 bg-[#0f172a] sticky top-0 z-50 shadow-sm shadow-[#1e293b]/20">
+    <div className="flex items-center justify-between px-4 py-5 bg-[#0f172a] sticky top-0 z-50 shadow-sm shadow-[#1e293b]/20 transition-colors duration-300">
       <div className="flex items-center w-10">
         {showBack && (
           <button onClick={handleBack} className="p-2 -ml-2 hover:bg-slate-800 rounded-full transition-colors group">

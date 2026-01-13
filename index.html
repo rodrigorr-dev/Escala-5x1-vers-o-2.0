@@ -9,13 +9,49 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0f172a; /* Slate 900 */
+        background-color: #020617;
         color: #f8fafc;
+        transition: background-color 0.3s ease;
       }
-      /* Hide scrollbar for clean mobile look */
+      /* Ocultar scrollbar */
       ::-webkit-scrollbar {
         width: 0px;
         background: transparent;
+      }
+
+      /* Overrides para Tema Claro */
+      .light-theme body {
+        background-color: #f1f5f9;
+        color: #0f172a;
+      }
+
+      .light-theme .bg-\[\#020617\] { background-color: #e2e8f0 !important; }
+      .light-theme .bg-\[\#0f172a\] { background-color: #ffffff !important; }
+      .light-theme .bg-\[\#1e293b\] { background-color: #f8fafc !important; }
+      .light-theme .bg-\[\#1e293b\]\/40 { background-color: rgba(241, 245, 249, 0.5) !important; }
+      .light-theme .bg-\[\#1e293b\]\/30 { background-color: rgba(241, 245, 249, 0.4) !important; }
+      .light-theme .bg-\[\#2a384e\] { background-color: #cbd5e1 !important; }
+      
+      .light-theme .text-white { color: #0f172a !important; }
+      .light-theme .text-slate-50 { color: #0f172a !important; }
+      .light-theme .text-slate-100 { color: #1e293b !important; }
+      .light-theme .text-slate-300 { color: #334155 !important; }
+      .light-theme .text-slate-400 { color: #64748b !important; }
+      .light-theme .text-slate-500 { color: #94a3b8 !important; }
+      
+      .light-theme .border-slate-800 { border-color: #e2e8f0 !important; }
+      .light-theme .border-slate-700 { border-color: #cbd5e1 !important; }
+      .light-theme .border-slate-800\/50 { border-color: rgba(226, 232, 240, 0.5) !important; }
+      
+      .light-theme .hover\:bg-\[\#1e293b\]:hover { background-color: #f1f5f9 !important; }
+      .light-theme .hover\:border-slate-700:hover { border-color: #94a3b8 !important; }
+      
+      /* Ajuste de sombras no tema claro */
+      .light-theme .shadow-2xl { shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important; }
+
+      /* Ajuste específico para inputs de data no Chrome/Safari light mode */
+      .light-theme input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0);
       }
     </style>
   <script type="importmap">
