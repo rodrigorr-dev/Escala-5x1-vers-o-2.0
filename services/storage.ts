@@ -10,6 +10,47 @@ const BIN_ID = 'YOUR_BIN_ID_HERE';
 const API_KEY = 'YOUR_MASTER_KEY_HERE'; 
 
 const LOCAL_STORAGE_KEY = 'hr_flow_overrides';
+const VACATIONS_KEY = 'hr_flow_vacations';
+
+export interface TimeOffRecord {
+  start: string;
+  end: string;
+  type: 'vacation' | 'leave' | 'day_off';
+}
+
+export interface EmployeeTimeOff {
+  employeeId: string;
+  vacations: TimeOffRecord[];
+}
+
+export const isDateInRange = (targetDate: Date, startDateStr: string, endDateStr: string) => {
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+  const tTime = target.getTime();
+  
+  // Helper to parse date string as local midnight
+  const parseLocal = (dateStr: string) => {
+    // Extract YYYY-MM-DD part to ensure we always treat it as local date
+    const justDate = dateStr.split('T')[0];
+    const d = new Date(justDate + 'T00:00:00');
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const s = parseLocal(startDateStr);
+  const e = parseLocal(endDateStr);
+  
+  return tTime >= s.getTime() && tTime <= e.getTime();
+};
+
+export const loadVacations = async (): Promise<EmployeeTimeOff[]> => {
+  const local = localStorage.getItem(VACATIONS_KEY);
+  return local ? JSON.parse(local) : [];
+};
+
+export const saveVacations = async (vacations: EmployeeTimeOff[]) => {
+  localStorage.setItem(VACATIONS_KEY, JSON.stringify(vacations));
+};
 
 export const loadOverrides = async (): Promise<ScheduleOverride[]> => {
   // Always load from local storage first for immediate UI render

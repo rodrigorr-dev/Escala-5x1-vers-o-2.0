@@ -1,26 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { NavBar } from '../components/NavBar';
-import { Calendar, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Calendar, ChevronsUpDown, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { loadVacations, saveVacations, TimeOffRecord } from '../services/storage';
 
 const RequestTimeOffPage: React.FC = () => {
   const navigate = useNavigate();
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const employeeNames = [
-      'Adriano Pinto',
-      'Alan Pereira',
-      'Antonio Marcos',
-      'Valci Jacinto',
-      'Manuel Gonçalves',
-      'Mário de Souza',
-      'Mauro Luiz'
-  ];
+  const employeeMapping: { [key: string]: string } = {
+      'Adriano Pinto': '1',
+      'Alan Pereira': '2',
+      'Antonio Marcos': '3',
+      'Valci Jacinto': '4',
+      'Manuel Gonçalves': '5',
+      'Mário de Souza': '6',
+      'Mauro Luiz': '7'
+  };
+
+  const employeeNames = Object.keys(employeeMapping);
 
   const [employee, setEmployee] = useState(employeeNames[0]);
   const [type, setType] = useState('Férias');
-  // Updated default dates to 2025
-  const [startDate, setStartDate] = useState('2025-02-10');
-  const [endDate, setEndDate] = useState('2025-02-24');
+  // Updated default dates to 2026
+  const [startDate, setStartDate] = useState('2026-03-30');
+  const [endDate, setEndDate] = useState('2026-04-13');
   const [totalDays, setTotalDays] = useState(0);
 
   useEffect(() => {
@@ -33,11 +37,48 @@ const RequestTimeOffPage: React.FC = () => {
     }
   }, [startDate, endDate]);
 
-  const handleSubmit = () => {
-    // Logic to submit
-    console.log({ employee, type, startDate, endDate });
-    navigate('/calendar');
+  const handleSubmit = async () => {
+    const employeeId = employeeMapping[employee];
+    if (!employeeId) return;
+
+    const allTimeOff = await loadVacations();
+    const updatedAllTimeOff = [...allTimeOff];
+    const empIdx = updatedAllTimeOff.findIndex(v => v.employeeId === employeeId);
+
+    const newRecord: TimeOffRecord = {
+        start: startDate,
+        end: endDate,
+        type: type === 'Férias' ? 'vacation' : type === 'Licença' ? 'leave' : 'day_off'
+    };
+
+    if (empIdx >= 0) {
+        updatedAllTimeOff[empIdx].vacations.push(newRecord);
+    } else {
+        updatedAllTimeOff.push({
+            employeeId,
+            vacations: [newRecord]
+        });
+    }
+
+    await saveVacations(updatedAllTimeOff);
+    setIsSubmitted(true);
+    setTimeout(() => {
+        navigate('/calendar');
+    }, 2000);
   };
+
+  if (isSubmitted) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full bg-[#0f172a] text-white p-6 text-center">
+              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                  <CheckCircle2 className="w-12 h-12 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Solicitação Enviada!</h2>
+              <p className="text-slate-400">Sua solicitação de {type.toLowerCase()} foi registrada com sucesso.</p>
+              <p className="text-slate-500 text-sm mt-8">Redirecionando para o calendário...</p>
+          </div>
+      );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#0f172a] text-white">

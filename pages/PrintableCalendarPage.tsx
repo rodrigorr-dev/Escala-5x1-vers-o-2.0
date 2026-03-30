@@ -2,37 +2,42 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Download, Zap, Wrench, ArrowLeft } from 'lucide-react';
 import { ScheduleOverride } from '../types';
-import { loadOverrides } from '../services/storage';
+import { loadOverrides, loadVacations, isDateInRange, EmployeeTimeOff } from '../services/storage';
 import { BottomMenu } from '../components/BottomMenu';
 
 interface EmployeeBase {
+  id: string;
   name: string;
   role: string;
   referenceDate: Date;
-  vacations?: { start: Date; end: Date }[];
 }
 
 const PrintableCalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+  const [allVacations, setAllVacations] = useState<EmployeeTimeOff[]>([]);
 
   useEffect(() => {
     const fetch = async () => {
-      const data = await loadOverrides();
-      setOverrides(data);
+      const [overridesData, vacationsData] = await Promise.all([
+        loadOverrides(),
+        loadVacations()
+      ]);
+      setOverrides(overridesData);
+      setAllVacations(vacationsData);
     };
     fetch();
   }, []);
 
   const employeesConfig: EmployeeBase[] = [
-    { name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
-    { name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
-    { name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
-    { name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
-    { name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
-    { name: 'Manuel Gonçalves', role: 'Mecânico', referenceDate: new Date(2025, 11, 5), vacations: [{ start: new Date(2025, 11, 22), end: new Date(2026, 0, 10) }] }, 
-    { name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
+    { id: '4', name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
+    { id: '7', name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
+    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
+    { id: '1', name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
+    { id: '6', name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
+    { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico', referenceDate: new Date(2025, 11, 5) }, 
+    { id: '2', name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
   ];
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -44,15 +49,11 @@ const PrintableCalendarPage: React.FC = () => {
 
   const getWhoIsOff = (date: Date) => {
     const list: { name: string, role: string, type: 'regular' | 'vacation' | 'extra' }[] = [];
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    
     const isEmployeeOnVacation = (employee: EmployeeBase, d: Date) => {
-      if (!employee.vacations) return false;
-      const target = new Date(d).setHours(0,0,0,0);
-      return employee.vacations.some(v => {
-        const start = new Date(v.start).setHours(0,0,0,0);
-        const end = new Date(v.end).setHours(0,0,0,0);
-        return target >= start && target <= end;
-      });
+      const empTimeOff = allVacations.find(v => v.employeeId === employee.id)?.vacations || [];
+      return empTimeOff.find(v => isDateInRange(d, v.start, v.end));
     };
     const isRegularDayOff = (employee: EmployeeBase, d: Date) => {
       const target = new Date(d).setHours(0,0,0,0);

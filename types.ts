@@ -7,12 +7,18 @@ export enum EmployeeStatus {
   EXTRA_OFF = 'Folga Extra'
 }
 
+export interface VacationRecord {
+  start: string; // ISO Date string
+  end: string;   // ISO Date string
+}
+
 export interface Employee {
   id: string;
   name: string;
   role: string;
   avatar: string;
   status: EmployeeStatus;
+  vacations?: VacationRecord[];
 }
 
 export interface LeaveRequest {

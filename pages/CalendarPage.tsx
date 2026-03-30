@@ -3,18 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, Zap, Wrench, AlertCircle, X, Save, PlusCircle, Palmtree, Cloud } from 'lucide-react';
 import { CalendarViewType, ScheduleOverride } from '../types';
 import { BottomMenu } from '../components/BottomMenu';
-import { loadOverrides, saveOverrides } from '../services/storage';
-
-interface VacationPeriod {
-  start: Date;
-  end: Date;
-}
+import { loadOverrides, saveOverrides, loadVacations, EmployeeTimeOff, isDateInRange } from '../services/storage';
 
 interface EmployeeBase {
+  id: string;
   name: string;
   role: string;
   referenceDate: Date; // A known day off
-  vacations?: VacationPeriod[];
 }
 
 const CalendarPage: React.FC = () => {
@@ -31,14 +26,19 @@ const CalendarPage: React.FC = () => {
 
   // Persistent Overrides State
   const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+  const [allVacations, setAllVacations] = useState<EmployeeTimeOff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load overrides on mount
+  // Load overrides and vacations on mount
   useEffect(() => {
     const fetch = async () => {
         setIsLoading(true);
-        const data = await loadOverrides();
-        if (data.length === 0) {
+        const [overridesData, vacationsData] = await Promise.all([
+            loadOverrides(),
+            loadVacations()
+        ]);
+        
+        if (overridesData.length === 0) {
              const defaultOverride: ScheduleOverride = {
                 id: 'default-1',
                 date: '2025-12-09',
@@ -48,8 +48,9 @@ const CalendarPage: React.FC = () => {
              };
              setOverrides([defaultOverride]);
         } else {
-             setOverrides(data);
+             setOverrides(overridesData);
         }
+        setAllVacations(vacationsData);
         setIsLoading(false);
     };
     fetch();
@@ -57,20 +58,13 @@ const CalendarPage: React.FC = () => {
 
   // Static Configuration
   const employeesConfig: EmployeeBase[] = [
-    { name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
-    { name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
-    { name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
-    { name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
-    { name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
-    { 
-      name: 'Manuel Gonçalves', 
-      role: 'Mecânico', 
-      referenceDate: new Date(2025, 11, 5),
-      vacations: [
-        { start: new Date(2025, 11, 22), end: new Date(2026, 0, 10) } 
-      ]
-    }, 
-    { name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
+    { id: '4', name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
+    { id: '7', name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
+    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
+    { id: '1', name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
+    { id: '6', name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
+    { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico', referenceDate: new Date(2025, 11, 5) }, 
+    { id: '2', name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
   ];
 
   // Navigation Logic
@@ -102,18 +96,13 @@ const CalendarPage: React.FC = () => {
     setSelectedDate(today);
   };
 
-  const isEmployeeOnVacation = (employee: EmployeeBase, date: Date) => {
-    if (!employee.vacations) return false;
-    const target = new Date(date).setHours(0,0,0,0);
-    return employee.vacations.some(v => {
-      const start = new Date(v.start).setHours(0,0,0,0);
-      const end = new Date(v.end).setHours(0,0,0,0);
-      return target >= start && target <= end;
-    });
+  const isEmployeeOnTimeOff = (employee: EmployeeBase, date: Date) => {
+    const empTimeOff = allVacations.find(v => v.employeeId === employee.id)?.vacations || [];
+    return empTimeOff.find(v => isDateInRange(date, v.start, v.end));
   };
 
   const getOverride = (employeeName: string, date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return overrides.find(o => o.date === dateStr && o.employeeName === employeeName);
   };
 
@@ -127,6 +116,7 @@ const CalendarPage: React.FC = () => {
 
   const getEmployeeStatusOnDate = (date: Date) => {
     const onVacation: EmployeeBase[] = [];
+    const onLeave: EmployeeBase[] = [];
     const onDayOff: EmployeeBase[] = [];
     const emergencyWork: { emp: EmployeeBase, note?: string, id: string }[] = [];
     const extraDayOff: { emp: EmployeeBase, note?: string, id: string }[] = [];
@@ -134,14 +124,18 @@ const CalendarPage: React.FC = () => {
 
     employeesConfig.forEach(emp => {
       const override = getOverride(emp.name, date);
+      const timeOff = isEmployeeOnTimeOff(emp, date);
+      
       if (override) {
         if (override.type === 'emergency_work') emergencyWork.push({ emp, note: override.note, id: override.id });
         else if (override.type === 'extra_day_off') extraDayOff.push({ emp, note: override.note, id: override.id });
-      } else if (isEmployeeOnVacation(emp, date)) onVacation.push(emp);
-      else if (isRegularDayOff(emp, date)) onDayOff.push(emp);
+      } else if (timeOff) {
+        if (timeOff.type === 'leave') onLeave.push(emp);
+        else onVacation.push(emp);
+      } else if (isRegularDayOff(emp, date)) onDayOff.push(emp);
       else working.push(emp);
     });
-    return { onVacation, onDayOff, emergencyWork, extraDayOff, working };
+    return { onVacation, onLeave, onDayOff, emergencyWork, extraDayOff, working };
   };
 
   const handleOpenModal = () => {
@@ -153,7 +147,7 @@ const CalendarPage: React.FC = () => {
 
   const handleAddOverride = () => {
     if (!overrideEmployee) return;
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
     const mainOverride: ScheduleOverride = {
         id: Date.now().toString(),
         date: dateStr,
@@ -165,7 +159,7 @@ const CalendarPage: React.FC = () => {
     if (overrideType === 'emergency_work') {
         const nextDay = new Date(selectedDate);
         nextDay.setDate(selectedDate.getDate() + 1);
-        const nextDayStr = nextDay.toISOString().split('T')[0];
+        const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
         const compensationOverride: ScheduleOverride = {
             id: (Date.now() + 1).toString(),
             date: nextDayStr,
@@ -234,7 +228,7 @@ const CalendarPage: React.FC = () => {
   const displayDate = view === CalendarViewType.WEEK ? selectedDate : currentMonth;
 
   const employeesAvailableForOverride = employeesConfig.filter(emp => {
-      const isOff = isRegularDayOff(emp, selectedDate) || isEmployeeOnVacation(emp, selectedDate);
+      const isOff = isRegularDayOff(emp, selectedDate) || isEmployeeOnTimeOff(emp, selectedDate);
       const alreadyOverridden = dailyStats.emergencyWork.some(e => e.emp.name === emp.name) || dailyStats.extraDayOff.some(e => e.emp.name === emp.name);
       if (alreadyOverridden) return false;
       return overrideType === 'emergency_work' ? isOff : !isOff;
@@ -281,6 +275,7 @@ const CalendarPage: React.FC = () => {
               const isSelected = selectedDate.setHours(0,0,0,0) === dateObj.setHours(0,0,0,0);
               const stats = getEmployeeStatusOnDate(dateObj);
               const hasVacation = stats.onVacation.length > 0;
+              const hasLeave = stats.onLeave.length > 0;
               const hasDayOff = stats.onDayOff.length > 0;
               const hasEmergency = stats.emergencyWork.length > 0;
               const hasExtraOff = stats.extraDayOff.length > 0;
@@ -299,9 +294,9 @@ const CalendarPage: React.FC = () => {
                   >
                     {dateObj.getDate()}
                   </button>
-                  {!isSelected && (hasVacation || hasDayOff || hasEmergency || hasExtraOff) && (
+                  {!isSelected && (hasVacation || hasLeave || hasDayOff || hasEmergency || hasExtraOff) && (
                     <div className="flex gap-0.5 absolute -bottom-1">
-                        {hasVacation && <div className={`${dotSize} rounded-full bg-blue-400`}></div>}
+                        {(hasVacation || hasLeave) && <div className={`${dotSize} rounded-full bg-blue-400`}></div>}
                         {hasEmergency && <div className={`${dotSize} rounded-full bg-purple-500`}></div>}
                         {hasExtraOff && <div className={`${dotSize} rounded-full bg-teal-400`}></div>}
                         {hasDayOff && !hasEmergency && !hasExtraOff && <div className={`${dotSize} rounded-full bg-orange-500`}></div>}
@@ -369,6 +364,20 @@ const CalendarPage: React.FC = () => {
                             <div key={emp.name} className="flex items-center gap-3 bg-[#1e293b] p-3 rounded-xl border border-blue-900/30">
                                 {renderRoleIcon(emp.role)}
                                 <div><p className="font-medium text-white text-sm">{emp.name}</p><p className="text-xs text-blue-300">Férias</p></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {dailyStats.onLeave.length > 0 && (
+                <div className="space-y-2">
+                    <h4 className="text-sm font-bold text-indigo-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-indigo-400"></span>De Licença ({dailyStats.onLeave.length})</h4>
+                    <div className="grid gap-3">
+                        {dailyStats.onLeave.map((emp) => (
+                            <div key={emp.name} className="flex items-center gap-3 bg-[#1e293b] p-3 rounded-xl border border-indigo-900/30">
+                                {renderRoleIcon(emp.role)}
+                                <div><p className="font-medium text-white text-sm">{emp.name}</p><p className="text-xs text-indigo-300">Licença</p></div>
                             </div>
                         ))}
                     </div>

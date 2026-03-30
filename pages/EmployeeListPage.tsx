@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Zap, Wrench } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { Employee, EmployeeStatus, ScheduleOverride } from '../types';
 import { BottomMenu } from '../components/BottomMenu';
-import { loadOverrides } from '../services/storage';
+import { loadOverrides, loadVacations, EmployeeTimeOff, isDateInRange } from '../services/storage';
 
 interface ExtendedEmployee extends Employee {
   referenceDate: Date;
-  vacations?: { start: Date; end: Date }[];
 }
 
 const EmployeeListPage: React.FC = () => {
@@ -15,11 +14,16 @@ const EmployeeListPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [today] = useState(new Date());
   const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+  const [allVacations, setAllVacations] = useState<EmployeeTimeOff[]>([]);
 
   useEffect(() => {
     const fetch = async () => {
-        const data = await loadOverrides();
-        setOverrides(data);
+        const [overridesData, vacationsData] = await Promise.all([
+            loadOverrides(),
+            loadVacations()
+        ]);
+        setOverrides(overridesData);
+        setAllVacations(vacationsData);
     };
     fetch();
   }, []);
@@ -29,7 +33,7 @@ const EmployeeListPage: React.FC = () => {
     { id: '2', name: 'Alan Pereira', role: 'Mecânico de Manutenção', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 6) },
     { id: '3', name: 'Antonio Marcos', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 2) },
     { id: '4', name: 'Valci Jacinto', role: 'Líder Mecânico', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 1) },
-    { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico Auxiliar', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 5), vacations: [{ start: new Date(2025, 11, 22), end: new Date(2026, 0, 10) }] },
+    { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico Auxiliar', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 5) },
     { id: '6', name: 'Mário de Souza', role: 'Mecânico Industrial', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 4) },
     { id: '7', name: 'Mauro Luiz', role: 'Técnico Eletricista', avatar: 'https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 1) }
   ];
@@ -37,24 +41,29 @@ const EmployeeListPage: React.FC = () => {
   const getCalculatedStatus = (emp: ExtendedEmployee): EmployeeStatus => {
     const checkDate = new Date(today);
     checkDate.setHours(0,0,0,0);
-    const dateStr = checkDate.toISOString().split('T')[0];
+    const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    
+    // 0. Overrides
     const override = overrides.find(o => o.date === dateStr && o.employeeName === emp.name);
     if (override) {
         if (override.type === 'emergency_work') return EmployeeStatus.EXTRA_WORK;
         if (override.type === 'extra_day_off') return EmployeeStatus.EXTRA_OFF;
     }
-    if (emp.vacations) {
-      const isOnVacation = emp.vacations.some(v => {
-        const start = new Date(v.start).setHours(0,0,0,0);
-        const end = new Date(v.end).setHours(0,0,0,0);
-        return checkDate.getTime() >= start && checkDate.getTime() <= end;
-      });
-      if (isOnVacation) return EmployeeStatus.VACATION;
+
+    // 1. Vacations/Leaves (from storage)
+    const empTimeOff = allVacations.find(v => v.employeeId === emp.id)?.vacations || [];
+    const timeOff = empTimeOff.find(v => isDateInRange(today, v.start, v.end));
+    
+    if (timeOff) {
+        return timeOff.type === 'leave' ? EmployeeStatus.LEAVE : EmployeeStatus.VACATION;
     }
+
+    // 2. Regular 5x1
     const ref = new Date(emp.referenceDate);
     ref.setHours(0,0,0,0);
     const diffDays = Math.round((checkDate.getTime() - ref.getTime()) / (1000 * 3600 * 24));
     if ((((diffDays % 6) + 6) % 6) === 0) return EmployeeStatus.DAY_OFF;
+    
     return EmployeeStatus.AVAILABLE;
   };
 
@@ -67,6 +76,7 @@ const EmployeeListPage: React.FC = () => {
      switch (status) {
       case EmployeeStatus.AVAILABLE: return 'bg-green-400';
       case EmployeeStatus.VACATION: return 'bg-blue-400';
+      case EmployeeStatus.LEAVE: return 'bg-indigo-400';
       case EmployeeStatus.DAY_OFF: return 'bg-orange-400';
       case EmployeeStatus.EXTRA_WORK: return 'bg-purple-500';
       case EmployeeStatus.EXTRA_OFF: return 'bg-teal-400';
