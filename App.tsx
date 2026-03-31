@@ -46,7 +46,7 @@ const App: React.FC = () => {
     <HashRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Navigate to="/calendar" replace />} />
+          <Route path="/" element={<CalendarPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/employees" element={<EmployeeListPage />} />
           <Route path="/employee/:id" element={<EmployeeDetailsPage />} />
