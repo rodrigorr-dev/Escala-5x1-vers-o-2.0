@@ -42,6 +42,14 @@ const PrintableCalendarPage: React.FC = () => {
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
   const formatDisplayName = (fullName: string) => {
     if (fullName === 'Antonio Marcos') return 'Marcos';
     return fullName.split(' ')[0];
@@ -89,6 +97,11 @@ const PrintableCalendarPage: React.FC = () => {
   };
 
   const calendarDays = getDaysToRender();
+  
+  const weeks: (Date | null)[][] = [];
+  for (let i = 0; i < calendarDays.length; i += 7) {
+    weeks.push(calendarDays.slice(i, i + 7));
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#0f172a] text-white print:bg-white print:text-black min-h-screen transition-colors duration-300 overflow-y-auto print:overflow-visible relative">
@@ -106,10 +119,11 @@ const PrintableCalendarPage: React.FC = () => {
           .print-grid { 
             border: 1px solid black !important; 
             display: grid !important; 
-            grid-template-columns: repeat(7, 1fr) !important; 
+            grid-template-columns: 30px repeat(7, 1fr) !important; 
             width: 100% !important; 
           }
           .print-cell { border: 1px solid black !important; min-height: 25mm !important; background: white !important; }
+          .print-week-cell { border: 1px solid black !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8pt !important; font-weight: bold !important; background: #f8fafc !important; }
           .print-bg-regular { background-color: #fff7ed !important; border-left: 5px solid #f97316 !important; }
           .print-bg-vacation { background-color: #eff6ff !important; border-left: 5px solid #3b82f6 !important; }
           .print-bg-extra { background-color: #f0fdfa !important; border-left: 5px solid #14b8a6 !important; }
@@ -171,41 +185,56 @@ const PrintableCalendarPage: React.FC = () => {
         </div>
 
         {/* Grid do Calendário */}
-        <div className="print-grid grid grid-cols-7 border-t border-l border-slate-700 flex-1 min-h-[450px] rounded-lg overflow-hidden border-slate-700">
+        <div className="print-grid grid grid-cols-[30px_repeat(7,1fr)] border-t border-l border-slate-700 flex-1 min-h-[450px] rounded-lg overflow-hidden border-slate-700">
+          <div className="bg-slate-800/80 py-3 text-center text-[8px] font-black border-r border-b border-slate-700 print:bg-slate-100 print:text-black print:border-black uppercase tracking-widest flex items-center justify-center">
+            Smn
+          </div>
           {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(day => (
             <div key={day} className="bg-slate-800/80 py-3 text-center text-[9px] sm:text-[10px] font-black border-r border-b border-slate-700 print:bg-slate-100 print:text-black print:border-black uppercase tracking-widest">
               {day}
             </div>
           ))}
 
-          {calendarDays.map((date, idx) => {
-            if (!date) return <div key={`empty-${idx}`} className="bg-slate-900/10 border-r border-b border-slate-700 print:border-black"></div>;
-            
-            const whoIsOff = getWhoIsOff(date);
-            const isToday = new Date().setHours(0,0,0,0) === date.setHours(0,0,0,0);
+          {weeks.map((week, weekIdx) => {
+            const firstDateInWeek = week.find(d => d !== null);
+            const weekNum = firstDateInWeek ? getWeekNumber(firstDateInWeek) : '';
 
             return (
-              <div key={idx} className={`print-cell p-1 sm:p-2 border-r border-b border-slate-700 flex flex-col gap-1 min-h-[90px] sm:min-h-[110px] bg-slate-900/5 print:border-black ${isToday ? 'bg-blue-600/5 ring-1 ring-blue-500/50 ring-inset' : ''}`}>
-                <span className={`text-right text-[10px] sm:text-xs font-black block mb-0.5 sm:mb-1 ${isToday ? 'text-blue-500' : 'text-slate-500 print:text-black'}`}>
-                  {date.getDate()}
-                </span>
-                
-                <div className="flex flex-col gap-0.5 sm:gap-1 overflow-hidden">
-                  {whoIsOff.map((off, oIdx) => (
-                    <div 
-                      key={oIdx} 
-                      className={`text-[8px] sm:text-[9px] px-1 sm:px-2 py-1 rounded border-l-2 font-bold uppercase truncate flex items-center gap-1 shadow-sm
-                        ${off.type === 'regular' ? 'bg-orange-500/10 text-orange-400 border-orange-500 print-bg-regular print-text' : 
-                          off.type === 'vacation' ? 'bg-blue-500/10 text-blue-400 border-blue-500 print-bg-vacation print-text' : 
-                          'bg-teal-500/10 text-teal-400 border-teal-500 print-bg-extra print-text'}
-                      `}
-                    >
-                      {off.role.toLowerCase().includes('eletricista') ? <Zap className="w-2 sm:w-2.5 h-2 sm:h-2.5 flex-shrink-0" /> : <Wrench className="w-2 sm:w-2.5 h-2 sm:h-2.5 flex-shrink-0" />}
-                      <span className="truncate">{formatDisplayName(off.name)}</span>
-                    </div>
-                  ))}
+              <React.Fragment key={weekIdx}>
+                <div className="print-week-cell bg-slate-800/40 border-r border-b border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 print:text-black print:border-black">
+                  {weekNum}
                 </div>
-              </div>
+                {week.map((date, idx) => {
+                  if (!date) return <div key={`empty-${weekIdx}-${idx}`} className="bg-slate-900/10 border-r border-b border-slate-700 print:border-black"></div>;
+                  
+                  const whoIsOff = getWhoIsOff(date);
+                  const isToday = new Date().setHours(0,0,0,0) === date.setHours(0,0,0,0);
+
+                  return (
+                    <div key={idx} className={`print-cell p-1 sm:p-2 border-r border-b border-slate-700 flex flex-col gap-1 min-h-[90px] sm:min-h-[110px] bg-slate-900/5 print:border-black ${isToday ? 'bg-blue-600/5 ring-1 ring-blue-500/50 ring-inset' : ''}`}>
+                      <span className={`text-right text-[10px] sm:text-xs font-black block mb-0.5 sm:mb-1 ${isToday ? 'text-blue-500' : 'text-slate-500 print:text-black'}`}>
+                        {date.getDate()}
+                      </span>
+                      
+                      <div className="flex flex-col gap-0.5 sm:gap-1 overflow-hidden">
+                        {whoIsOff.map((off, oIdx) => (
+                          <div 
+                            key={oIdx} 
+                            className={`text-[8px] sm:text-[9px] px-1 sm:px-2 py-1 rounded border-l-2 font-bold uppercase truncate flex items-center gap-1 shadow-sm
+                              ${off.type === 'regular' ? 'bg-orange-500/10 text-orange-400 border-orange-500 print-bg-regular print-text' : 
+                                off.type === 'vacation' ? 'bg-blue-500/10 text-blue-400 border-blue-500 print-bg-vacation print-text' : 
+                                'bg-teal-500/10 text-teal-400 border-teal-500 print-bg-extra print-text'}
+                            `}
+                          >
+                            {off.role.toLowerCase().includes('eletricista') ? <Zap className="w-2 sm:w-2.5 h-2 sm:h-2.5 flex-shrink-0" /> : <Wrench className="w-2 sm:w-2.5 h-2 sm:h-2.5 flex-shrink-0" />}
+                            <span className="truncate">{formatDisplayName(off.name)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </React.Fragment>
             );
           })}
         </div>

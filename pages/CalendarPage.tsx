@@ -201,6 +201,14 @@ const CalendarPage: React.FC = () => {
   const daysOfWeek = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
   const getDaysToRender = () => {
     if (view === CalendarViewType.WEEK) {
         const startOfWeek = new Date(selectedDate);
@@ -223,6 +231,12 @@ const CalendarPage: React.FC = () => {
   };
 
   const daysToRender = getDaysToRender();
+  
+  const weeks: (Date | null)[][] = [];
+  for (let i = 0; i < daysToRender.length; i += 7) {
+    weeks.push(daysToRender.slice(i, i + 7));
+  }
+
   const dailyStats = getEmployeeStatusOnDate(selectedDate);
   const formattedSelectedDate = selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const displayDate = view === CalendarViewType.WEEK ? selectedDate : currentMonth;
@@ -263,46 +277,59 @@ const CalendarPage: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto pb-24">
         <div className="px-4 mb-6">
-          <div className="grid grid-cols-7 mb-4">
+          <div className="grid grid-cols-[30px_repeat(7,1fr)] mb-4">
+            <div className="text-center text-slate-600 text-[10px] font-bold self-center">Smn</div>
             {daysOfWeek.map((day, i) => (
               <div key={i} className="text-center text-slate-400 text-sm font-medium">{day}</div>
             ))}
           </div>
-          <div className={`grid grid-cols-7 gap-y-4 gap-x-1 ${view === CalendarViewType.WEEK ? 'py-4 bg-[#1e293b]/30 rounded-2xl' : ''}`}>
-            {daysToRender.map((dateObj, index) => {
-              if (!dateObj) return <div key={`empty-${index}`} />;
-              const isToday = new Date().setHours(0,0,0,0) === dateObj.setHours(0,0,0,0);
-              const isSelected = selectedDate.setHours(0,0,0,0) === dateObj.setHours(0,0,0,0);
-              const stats = getEmployeeStatusOnDate(dateObj);
-              const hasVacation = stats.onVacation.length > 0;
-              const hasLeave = stats.onLeave.length > 0;
-              const hasDayOff = stats.onDayOff.length > 0;
-              const hasEmergency = stats.emergencyWork.length > 0;
-              const hasExtraOff = stats.extraDayOff.length > 0;
-              const sizeClass = view === CalendarViewType.WEEK ? 'w-11 h-11 text-base' : 'w-9 h-9 text-sm';
-              const dotSize = view === CalendarViewType.WEEK ? 'w-1.5 h-1.5' : 'w-1 h-1';
-
+          <div className={`grid grid-cols-[30px_repeat(7,1fr)] gap-y-4 gap-x-1 ${view === CalendarViewType.WEEK ? 'py-4 bg-[#1e293b]/30 rounded-2xl' : ''}`}>
+            {weeks.map((week, weekIdx) => {
+              const firstDateInWeek = week.find(d => d !== null);
+              const weekNum = firstDateInWeek ? getWeekNumber(firstDateInWeek) : '';
+              
               return (
-                <div key={index} className="flex flex-col items-center gap-1 relative h-auto">
-                  <button
-                    onClick={() => {
-                        const newDate = new Date(dateObj);
-                        setSelectedDate(newDate);
-                        if (view === CalendarViewType.WEEK && newDate.getMonth() !== currentMonth.getMonth()) setCurrentMonth(newDate);
-                    }}
-                    className={`${sizeClass} flex items-center justify-center rounded-full font-medium transition-all ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40 scale-110' : isToday ? 'border border-blue-500 text-blue-400' : 'text-white hover:bg-[#1e293b]'}`}
-                  >
-                    {dateObj.getDate()}
-                  </button>
-                  {!isSelected && (hasVacation || hasLeave || hasDayOff || hasEmergency || hasExtraOff) && (
-                    <div className="flex gap-0.5 absolute -bottom-1">
-                        {(hasVacation || hasLeave) && <div className={`${dotSize} rounded-full bg-blue-400`}></div>}
-                        {hasEmergency && <div className={`${dotSize} rounded-full bg-purple-500`}></div>}
-                        {hasExtraOff && <div className={`${dotSize} rounded-full bg-teal-400`}></div>}
-                        {hasDayOff && !hasEmergency && !hasExtraOff && <div className={`${dotSize} rounded-full bg-orange-500`}></div>}
-                    </div>
-                  )}
-                </div>
+                <React.Fragment key={weekIdx}>
+                  <div className="flex items-center justify-center text-[10px] font-bold text-slate-600 border-r border-slate-800/30 mr-1">
+                    {weekNum}
+                  </div>
+                  {week.map((dateObj, index) => {
+                    if (!dateObj) return <div key={`empty-${weekIdx}-${index}`} />;
+                    const isToday = new Date().setHours(0,0,0,0) === new Date(dateObj).setHours(0,0,0,0);
+                    const isSelected = new Date(selectedDate).setHours(0,0,0,0) === new Date(dateObj).setHours(0,0,0,0);
+                    const stats = getEmployeeStatusOnDate(dateObj);
+                    const hasVacation = stats.onVacation.length > 0;
+                    const hasLeave = stats.onLeave.length > 0;
+                    const hasDayOff = stats.onDayOff.length > 0;
+                    const hasEmergency = stats.emergencyWork.length > 0;
+                    const hasExtraOff = stats.extraDayOff.length > 0;
+                    const sizeClass = view === CalendarViewType.WEEK ? 'w-11 h-11 text-base' : 'w-9 h-9 text-sm';
+                    const dotSize = view === CalendarViewType.WEEK ? 'w-1.5 h-1.5' : 'w-1 h-1';
+
+                    return (
+                      <div key={index} className="flex flex-col items-center gap-1 relative h-auto">
+                        <button
+                          onClick={() => {
+                              const newDate = new Date(dateObj);
+                              setSelectedDate(newDate);
+                              if (view === CalendarViewType.WEEK && newDate.getMonth() !== currentMonth.getMonth()) setCurrentMonth(newDate);
+                          }}
+                          className={`${sizeClass} flex items-center justify-center rounded-full font-medium transition-all ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40 scale-110' : isToday ? 'border border-blue-500 text-blue-400' : 'text-white hover:bg-[#1e293b]'}`}
+                        >
+                          {dateObj.getDate()}
+                        </button>
+                        {!isSelected && (hasVacation || hasLeave || hasDayOff || hasEmergency || hasExtraOff) && (
+                          <div className="flex gap-0.5 absolute -bottom-1">
+                              {(hasVacation || hasLeave) && <div className={`${dotSize} rounded-full bg-blue-400`}></div>}
+                              {hasEmergency && <div className={`${dotSize} rounded-full bg-purple-500`}></div>}
+                              {hasExtraOff && <div className={`${dotSize} rounded-full bg-teal-400`}></div>}
+                              {hasDayOff && !hasEmergency && !hasExtraOff && <div className={`${dotSize} rounded-full bg-orange-500`}></div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
           </div>
