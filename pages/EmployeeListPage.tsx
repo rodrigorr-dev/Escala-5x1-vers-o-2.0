@@ -36,7 +36,7 @@ const EmployeeListPage: React.FC = () => {
     { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico Auxiliar', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 5) },
     { id: '6', name: 'Mário de Souza', role: 'Mecânico Industrial', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 4) },
     { id: '7', name: 'Mauro Luiz', role: 'Técnico Eletricista', avatar: 'https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 12), rotation: '12x36' },
-    { id: '8', name: 'Geilson', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 3) }
+    { id: '8', name: 'Geilson', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 1) }
   ];
 
   const getCalculatedStatus = (emp: ExtendedEmployee): EmployeeStatus => {

@@ -107,7 +107,7 @@ const EmployeeDetailsPage: React.FC = () => {
       role: 'Eletricista',
       avatar: '',
       status: EmployeeStatus.AVAILABLE,
-      referenceDate: new Date(2026, 4, 3), // 03/05/2026
+      referenceDate: new Date(2026, 4, 1), // 01/05/2026
       birthday: '15/ago'
     }
   ];

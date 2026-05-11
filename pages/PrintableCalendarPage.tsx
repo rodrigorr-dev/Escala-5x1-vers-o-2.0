@@ -39,7 +39,7 @@ const PrintableCalendarPage: React.FC = () => {
     { id: '6', name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
     { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico', referenceDate: new Date(2025, 11, 5) }, 
     { id: '2', name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
-    { id: '8', name: 'Geilson', role: 'Eletricista', referenceDate: new Date(2026, 4, 3) },
+    { id: '8', name: 'Geilson', role: 'Eletricista', referenceDate: new Date(2026, 4, 1) },
   ];
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
