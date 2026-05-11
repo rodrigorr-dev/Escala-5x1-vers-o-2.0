@@ -72,7 +72,8 @@ const EmployeeDetailsPage: React.FC = () => {
       avatar: '',
       status: EmployeeStatus.VACATION,
       referenceDate: new Date(2025, 11, 1), // 01/12/2025
-      birthday: '29/jul'
+      birthday: '29/jul',
+      rotation: 'SundayOff'
     },
     {
       id: '5',

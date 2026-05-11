@@ -59,7 +59,7 @@ const CalendarPage: React.FC = () => {
 
   // Static Configuration
   const employeesConfig: EmployeeBase[] = [
-    { id: '4', name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
+    { id: '4', name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1), rotation: 'SundayOff' }, 
     { id: '7', name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2026, 4, 12), rotation: '12x36' }, 
     { id: '3', name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2026, 4, 11), rotation: '12x36' }, 
     { id: '1', name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3), rotation: 'SundayOff' }, 
