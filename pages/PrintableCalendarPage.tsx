@@ -113,27 +113,57 @@ const PrintableCalendarPage: React.FC = () => {
     <div className="flex flex-col h-full bg-[#0f172a] text-white print:bg-white print:text-black min-h-screen transition-colors duration-300 overflow-y-auto print:overflow-visible relative">
       <style>{`
         @media print {
-          @page { size: A4 landscape; margin: 5mm; }
+          @page { 
+            size: A4 landscape; 
+            margin: 5mm; 
+          }
           html, body, #root, .min-h-screen { 
             background: white !important; 
             color: black !important; 
             height: auto !important; 
             overflow: visible !important; 
             position: static !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .no-print { display: none !important; }
           .print-grid { 
             border: 1px solid black !important; 
             display: grid !important; 
-            grid-template-columns: 30px repeat(7, 1fr) !important; 
+            grid-template-columns: 25px repeat(7, 1fr) !important; 
             width: 100% !important; 
+            height: 165mm !important; /* Forces total height for grid */
           }
-          .print-cell { border: 1px solid black !important; min-height: 25mm !important; background: white !important; }
-          .print-week-cell { border: 1px solid black !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8pt !important; font-weight: bold !important; background: #f8fafc !important; }
-          .print-bg-regular { background-color: #fff7ed !important; border-left: 5px solid #f97316 !important; }
-          .print-bg-vacation { background-color: #eff6ff !important; border-left: 5px solid #3b82f6 !important; }
-          .print-bg-extra { background-color: #f0fdfa !important; border-left: 5px solid #14b8a6 !important; }
-          .print-text { color: black !important; font-weight: bold !important; font-size: 10pt !important; }
+          .print-cell { 
+            border: 1px solid black !important; 
+            min-height: 0 !important; 
+            height: auto !important;
+            background: white !important; 
+            padding: 1mm !important;
+          }
+          .print-week-cell { 
+            border: 1px solid black !important; 
+            display: flex !important; 
+            align-items: center !important; 
+            justify-content: center !important; 
+            font-size: 7pt !important; 
+            font-weight: bold !important; 
+            background: #f8fafc !important; 
+          }
+          .print-bg-regular { background-color: #fff7ed !important; border-left: 3px solid #f97316 !important; }
+          .print-bg-vacation { background-color: #eff6ff !important; border-left: 3px solid #3b82f6 !important; }
+          .print-bg-extra { background-color: #f0fdfa !important; border-left: 3px solid #14b8a6 !important; }
+          .print-text { color: black !important; font-weight: bold !important; font-size: 8pt !important; line-height: 1 !important; }
+          .print-cell span { font-size: 9pt !important; margin-bottom: 0 !important; }
+          .print-grid div[class*="bg-slate-800/80"] {
+            padding-top: 1mm !important;
+            padding-bottom: 1mm !important;
+            font-size: 7pt !important;
+          }
+          .print-container { padding: 0 !important; margin: 0 !important; }
+          .print-cell div[class*="flex flex-col gap-0.5"] {
+            gap: 0.5mm !important;
+          }
         }
       `}</style>
 
@@ -172,9 +202,9 @@ const PrintableCalendarPage: React.FC = () => {
 
       <div className="print-container flex-1 p-4 sm:p-6 flex flex-col gap-4 print:p-0">
         {/* Título Visível Apenas no PDF */}
-        <div className="hidden print:block text-center border-b-2 border-black pb-4 mb-4">
-          <h1 className="text-3xl font-black uppercase tracking-tight">Escala Mensal de Folgas - Manutenção</h1>
-          <p className="text-lg font-bold text-slate-700">{monthNames[currentMonth.getMonth()]} de {currentMonth.getFullYear()}</p>
+        <div className="hidden print:block text-center border-b border-black pb-2 mb-2">
+          <h1 className="text-xl font-black uppercase tracking-tight">Escala Mensal de Folgas - Manutenção</h1>
+          <p className="text-sm font-bold text-slate-700">{monthNames[currentMonth.getMonth()]} de {currentMonth.getFullYear()}</p>
         </div>
 
         {/* Legenda */}
@@ -191,7 +221,7 @@ const PrintableCalendarPage: React.FC = () => {
         </div>
 
         {/* Grid do Calendário */}
-        <div className="print-grid grid grid-cols-[30px_repeat(7,1fr)] border-t border-l border-slate-700 flex-1 min-h-[450px] rounded-lg overflow-hidden border-slate-700">
+        <div className="print-grid grid grid-cols-[30px_repeat(7,1fr)] border-t border-l border-slate-700 flex-1 min-h-[400px] rounded-lg overflow-hidden border-slate-700 print:min-h-0">
           <div className="bg-slate-800/80 py-3 text-center text-[8px] font-black border-r border-b border-slate-700 print:bg-slate-100 print:text-black print:border-black uppercase tracking-widest flex items-center justify-center">
             Smn
           </div>
