@@ -29,7 +29,7 @@ const EmployeeListPage: React.FC = () => {
   }, []);
 
   const employeesConfig: ExtendedEmployee[] = [
-    { id: '1', name: 'Adriano Pinto', role: 'Eletricista Senior', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 3) },
+    { id: '1', name: 'Adriano Pinto', role: 'Eletricista Senior', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 3), rotation: 'SundayOff' },
     { id: '2', name: 'Alan Pereira', role: 'Mecânico de Manutenção', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 6) },
     { id: '3', name: 'Antonio Marcos', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 11), rotation: '12x36' },
     { id: '4', name: 'Valci Jacinto', role: 'Líder Mecânico', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 1) },
@@ -66,6 +66,8 @@ const EmployeeListPage: React.FC = () => {
     
     if (emp.rotation === '12x36') {
       if (((diffDays % 2) + 2) % 2 === 0) return EmployeeStatus.DAY_OFF;
+    } else if (emp.rotation === 'SundayOff') {
+      if (checkDate.getDay() === 0) return EmployeeStatus.DAY_OFF;
     } else {
       if ((((diffDays % 6) + 6) % 6) === 0) return EmployeeStatus.DAY_OFF;
     }

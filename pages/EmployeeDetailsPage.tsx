@@ -43,7 +43,8 @@ const EmployeeDetailsPage: React.FC = () => {
       avatar: '',
       status: EmployeeStatus.AVAILABLE,
       referenceDate: new Date(2025, 11, 3), // 03/12/2025
-      birthday: '13/abr'
+      birthday: '13/abr',
+      rotation: 'SundayOff'
     },
     {
       id: '2',
@@ -143,6 +144,8 @@ const EmployeeDetailsPage: React.FC = () => {
      
      if (emp.rotation === '12x36') {
        if (((diffDays % 2) + 2) % 2 === 0) return EmployeeStatus.DAY_OFF;
+     } else if (emp.rotation === 'SundayOff') {
+       if (today.getDay() === 0) return EmployeeStatus.DAY_OFF;
      } else {
        const cyclePos = ((diffDays % 6) + 6) % 6;
        if (cyclePos === 0) return EmployeeStatus.DAY_OFF;
@@ -211,9 +214,14 @@ const EmployeeDetailsPage: React.FC = () => {
     const diffTime = today.getTime() - ref.getTime();
     const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
     
-    // Determine cycle size
-    const cycleSize = emp.rotation === '12x36' ? 2 : 6;
-    const cyclePos = ((diffDays % cycleSize) + cycleSize) % cycleSize; 
+    // Determine cycle size and position
+    let cycleSize = emp.rotation === '12x36' ? 2 : 6;
+    let cyclePos = ((diffDays % cycleSize) + cycleSize) % cycleSize; 
+    
+    if (emp.rotation === 'SundayOff') {
+      cycleSize = 7;
+      cyclePos = today.getDay(); // 0 is Sunday
+    }
 
     // Days until next off (if cyclePos is 0, today is off, next is in cycleSize days)
     const daysUntilNext = cyclePos === 0 ? cycleSize : (cycleSize - cyclePos);
@@ -358,7 +366,9 @@ const EmployeeDetailsPage: React.FC = () => {
                                     </span>
                                 )}
                             </div>
-                            <p className="text-slate-400 text-xs mt-0.5">Escala 5x1</p>
+                            <p className="text-slate-400 text-xs mt-0.5">
+                                {employee.rotation === '12x36' ? 'Escala 12x36' : employee.rotation === 'SundayOff' ? 'Folga aos Domingos' : 'Escala 5x1'}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -432,7 +442,9 @@ const EmployeeDetailsPage: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-xs text-slate-400">Escala de Trabalho</p>
-                                <p className="text-white font-medium">{employee.rotation === '12x36' ? '12x36 (Dia Sim, Dia Não)' : '5x1 (Rotativo)'}</p>
+                                <p className="text-white font-medium">
+                                    {employee.rotation === '12x36' ? '12x36 (Dia Sim, Dia Não)' : employee.rotation === 'SundayOff' ? 'Fixa (Domingos)' : '5x1 (Rotativo)'}
+                                </p>
                             </div>
                         </div>
                     </div>
