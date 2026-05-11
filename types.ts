@@ -19,6 +19,7 @@ export interface Employee {
   avatar: string;
   status: EmployeeStatus;
   vacations?: VacationRecord[];
+  rotation?: '5x1' | '12x36';
 }
 
 export interface LeaveRequest {

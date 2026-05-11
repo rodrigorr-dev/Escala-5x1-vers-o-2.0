@@ -6,7 +6,7 @@ import { Employee, EmployeeStatus, ScheduleOverride } from '../types';
 import { loadOverrides, loadVacations, saveVacations, EmployeeTimeOff, isDateInRange, TimeOffRecord } from '../services/storage';
 
 interface ExtendedEmployee extends Employee {
-  referenceDate: Date; // Base date for 5x1 calculation (December 2025 based)
+  referenceDate: Date; // Base date for rotation calculation
   birthday: string;
 }
 
@@ -60,8 +60,9 @@ const EmployeeDetailsPage: React.FC = () => {
       role: 'Eletricista',
       avatar: '',
       status: EmployeeStatus.AVAILABLE,
-      referenceDate: new Date(2025, 11, 2), // 02/12/2025
-      birthday: '09/nov'
+      referenceDate: new Date(2026, 4, 11), // 11/05/2026
+      birthday: '09/nov',
+      rotation: '12x36'
     },
     {
       id: '4',
@@ -96,8 +97,18 @@ const EmployeeDetailsPage: React.FC = () => {
       role: 'Eletricista',
       avatar: '',
       status: EmployeeStatus.LEAVE,
-      referenceDate: new Date(2025, 11, 1), // 01/12/2025
-      birthday: '06/mai'
+      referenceDate: new Date(2026, 4, 12), // 12/05/2026
+      birthday: '06/mai',
+      rotation: '12x36'
+    },
+    {
+      id: '8',
+      name: 'Geilson',
+      role: 'Eletricista',
+      avatar: '',
+      status: EmployeeStatus.AVAILABLE,
+      referenceDate: new Date(2026, 4, 3), // 03/05/2026
+      birthday: '15/ago'
     }
   ];
 
@@ -125,13 +136,18 @@ const EmployeeDetailsPage: React.FC = () => {
          return timeOff.type === 'leave' ? EmployeeStatus.LEAVE : EmployeeStatus.VACATION;
      }
 
-     // 2. Regular Logic (5x1)
+     // 2. Regular Rotation
      const ref = new Date(emp.referenceDate);
      ref.setHours(0,0,0,0);
      const diffDays = Math.round((today.getTime() - ref.getTime()) / (1000 * 3600 * 24));
-     const cyclePos = ((diffDays % 6) + 6) % 6;
      
-     if (cyclePos === 0) return EmployeeStatus.DAY_OFF;
+     if (emp.rotation === '12x36') {
+       if (((diffDays % 2) + 2) % 2 === 0) return EmployeeStatus.DAY_OFF;
+     } else {
+       const cyclePos = ((diffDays % 6) + 6) % 6;
+       if (cyclePos === 0) return EmployeeStatus.DAY_OFF;
+     }
+     
      return EmployeeStatus.AVAILABLE; // Default to Available if not off
   };
 
@@ -182,46 +198,36 @@ const EmployeeDetailsPage: React.FC = () => {
   const currentStatus = calculateCurrentStatus(employeeBase);
   const employee = { ...employeeBase, status: currentStatus, vacations: empVacations };
 
-  // Logic to calculate Next Day Off and Previous Days Off based on 5x1
-  const calculateSchedule = (refDate: Date) => {
-    // Current date simulation (using today, but could be fixed to 2025 if needed)
+  // Logic to calculate Next Day Off and Previous Days Off based on rotation
+  const calculateSchedule = (emp: ExtendedEmployee) => {
+    // Current date simulation (using today)
     const today = new Date(); 
     today.setHours(0, 0, 0, 0);
 
-    const ref = new Date(refDate);
+    const ref = new Date(emp.referenceDate);
     ref.setHours(0, 0, 0, 0);
 
     // Calculate the difference in days
     const diffTime = today.getTime() - ref.getTime();
     const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
     
-    // In a 6-day cycle (5 work + 1 off), the remainder tells us position
-    // We need to handle negative remainders correctly for JS modulo
-    const cyclePos = ((diffDays % 6) + 6) % 6; 
+    // Determine cycle size
+    const cycleSize = emp.rotation === '12x36' ? 2 : 6;
+    const cyclePos = ((diffDays % cycleSize) + cycleSize) % cycleSize; 
 
-    // Days until next off (if cyclePos is 0, today is off, next is in 6 days)
-    const daysUntilNext = cyclePos === 0 ? 6 : (6 - cyclePos);
+    // Days until next off (if cyclePos is 0, today is off, next is in cycleSize days)
+    const daysUntilNext = cyclePos === 0 ? cycleSize : (cycleSize - cyclePos);
     
     // Calculate dates
     const nextOff = new Date(today);
     nextOff.setDate(today.getDate() + daysUntilNext);
 
     const lastOff = new Date(today);
-    // If today is off (0), last off was today. If not, it was 'daysSinceLast' ago.
-    // Requirement says "Two previous". If today is off, that counts as one?
-    // Let's assume strict "Previous" means before today if today isn't off, or today if it is.
-    
     let offset1 = cyclePos === 0 ? 0 : cyclePos;
     lastOff.setDate(today.getDate() - offset1);
 
     const secondLastOff = new Date(lastOff);
-    secondLastOff.setDate(lastOff.getDate() - 6);
-
-    // If today is a day off, we might want to show Today as "Current" and the previous one.
-    // Or just show strictly previous. Let's show: Next, Last, 2nd Last.
-    
-    // Note: If today is a day off, "Next" is 6 days from now. "Last" is Today.
-    // If today is work, "Next" is soon. "Last" was recent.
+    secondLastOff.setDate(lastOff.getDate() - cycleSize);
 
     return {
       next: nextOff,
@@ -229,7 +235,7 @@ const EmployeeDetailsPage: React.FC = () => {
     };
   };
 
-  const schedule = calculateSchedule(employee.referenceDate);
+  const schedule = calculateSchedule(employeeBase);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -426,7 +432,7 @@ const EmployeeDetailsPage: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-xs text-slate-400">Escala de Trabalho</p>
-                                <p className="text-white font-medium">5x1 (Rotativo)</p>
+                                <p className="text-white font-medium">{employee.rotation === '12x36' ? '12x36 (Dia Sim, Dia Não)' : '5x1 (Rotativo)'}</p>
                             </div>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ interface EmployeeBase {
   name: string;
   role: string;
   referenceDate: Date;
+  rotation?: '5x1' | '12x36';
 }
 
 const PrintableCalendarPage: React.FC = () => {
@@ -32,12 +33,13 @@ const PrintableCalendarPage: React.FC = () => {
 
   const employeesConfig: EmployeeBase[] = [
     { id: '4', name: 'Valci Jacinto', role: 'Mecânico', referenceDate: new Date(2025, 11, 1) }, 
-    { id: '7', name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2025, 11, 1) }, 
-    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2025, 11, 2) }, 
+    { id: '7', name: 'Mauro Luiz', role: 'Eletricista', referenceDate: new Date(2026, 4, 12), rotation: '12x36' }, 
+    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', referenceDate: new Date(2026, 4, 11), rotation: '12x36' }, 
     { id: '1', name: 'Adriano Pinto', role: 'Eletricista', referenceDate: new Date(2025, 11, 3) }, 
     { id: '6', name: 'Mário de Souza', role: 'Mecânico', referenceDate: new Date(2025, 11, 4) }, 
     { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico', referenceDate: new Date(2025, 11, 5) }, 
     { id: '2', name: 'Alan Pereira', role: 'Mecânico', referenceDate: new Date(2025, 11, 6) }, 
+    { id: '8', name: 'Geilson', role: 'Eletricista', referenceDate: new Date(2026, 4, 3) },
   ];
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -67,6 +69,10 @@ const PrintableCalendarPage: React.FC = () => {
       const target = new Date(d).setHours(0,0,0,0);
       const ref = new Date(employee.referenceDate).setHours(0,0,0,0);
       const diffDays = Math.round((target - ref) / (1000 * 3600 * 24));
+      
+      if (employee.rotation === '12x36') {
+        return ((diffDays % 2) + 2) % 2 === 0;
+      }
       return ((diffDays % 6) + 6) % 6 === 0;
     };
     employeesConfig.forEach(emp => {

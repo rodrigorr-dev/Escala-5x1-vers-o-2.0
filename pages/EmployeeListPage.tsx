@@ -31,11 +31,12 @@ const EmployeeListPage: React.FC = () => {
   const employeesConfig: ExtendedEmployee[] = [
     { id: '1', name: 'Adriano Pinto', role: 'Eletricista Senior', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 3) },
     { id: '2', name: 'Alan Pereira', role: 'Mecânico de Manutenção', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 6) },
-    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 2) },
+    { id: '3', name: 'Antonio Marcos', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 11), rotation: '12x36' },
     { id: '4', name: 'Valci Jacinto', role: 'Líder Mecânico', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 1) },
     { id: '5', name: 'Manuel Gonçalves', role: 'Mecânico Auxiliar', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 5) },
     { id: '6', name: 'Mário de Souza', role: 'Mecânico Industrial', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 4) },
-    { id: '7', name: 'Mauro Luiz', role: 'Técnico Eletricista', avatar: 'https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2025, 11, 1) }
+    { id: '7', name: 'Mauro Luiz', role: 'Técnico Eletricista', avatar: 'https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 12), rotation: '12x36' },
+    { id: '8', name: 'Geilson', role: 'Eletricista', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', status: EmployeeStatus.AVAILABLE, referenceDate: new Date(2026, 4, 3) }
   ];
 
   const getCalculatedStatus = (emp: ExtendedEmployee): EmployeeStatus => {
@@ -58,11 +59,16 @@ const EmployeeListPage: React.FC = () => {
         return timeOff.type === 'leave' ? EmployeeStatus.LEAVE : EmployeeStatus.VACATION;
     }
 
-    // 2. Regular 5x1
+    // 2. Regular Rotation
     const ref = new Date(emp.referenceDate);
     ref.setHours(0,0,0,0);
     const diffDays = Math.round((checkDate.getTime() - ref.getTime()) / (1000 * 3600 * 24));
-    if ((((diffDays % 6) + 6) % 6) === 0) return EmployeeStatus.DAY_OFF;
+    
+    if (emp.rotation === '12x36') {
+      if (((diffDays % 2) + 2) % 2 === 0) return EmployeeStatus.DAY_OFF;
+    } else {
+      if ((((diffDays % 6) + 6) % 6) === 0) return EmployeeStatus.DAY_OFF;
+    }
     
     return EmployeeStatus.AVAILABLE;
   };
